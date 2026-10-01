@@ -27,6 +27,23 @@
         "createdAt": { "type": "string", "maxLength": 50 }
       },
       "required": ["email", "role"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Store contact numbers, emails, addresses, and payment accounts",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "banglaStoreName": { "type": "string" },
+        "phoneNumbers": { "type": "array" },
+        "emailAddresses": { "type": "array" },
+        "businessAddresses": { "type": "array" },
+        "bkashAccounts": { "type": "array" },
+        "nagadAccounts": { "type": "array" },
+        "rocketAccounts": { "type": "array" },
+        "upayAccounts": { "type": "array" },
+        "bankAccounts": { "type": "array" }
+      }
     }
   },
   "firestore": {
@@ -37,6 +54,10 @@
     "/admins/{adminId}": {
       "schema": "Admin",
       "description": "Trusted admin collection determining admin privileges"
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Publicly readable website and payment settings maintained by admin"
     }
   }
 }

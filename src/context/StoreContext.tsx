@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import {
   getCustomerProfile,
   logoutCustomer,
@@ -121,6 +122,12 @@ interface StoreContextType {
   // Settings
   settings: WebsiteSettings;
   updateSettings: (newSettings: Partial<WebsiteSettings>) => void;
+  calculateDeliveryCharge: (
+    district?: string,
+    area?: string,
+    orderSubtotal?: number,
+    division?: string
+  ) => { charge: number; isFree: boolean; ruleName: string; estimatedDays?: string };
 
   // Notifications
   notifications: StoreNotification[];
@@ -182,8 +189,74 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [ads, setAds] = useState<Advertisement[]>(initialAds);
   const [coupons] = useState<Coupon[]>(initialCoupons);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [settings, setSettings] = useState<WebsiteSettings>(initialSettings);
+  const [settings, setSettings] = useState<WebsiteSettings>(() => {
+    try {
+      const saved = localStorage.getItem('jihan_store_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If saved settings contains old mock telephone or old mock address, refresh with official details
+        const isOldMock = !parsed.phone || parsed.phone.includes('000000') || (parsed.address && parsed.address.includes('Uttara'));
+        if (isOldMock) {
+          localStorage.setItem('jihan_store_settings', JSON.stringify(initialSettings));
+          return initialSettings;
+        }
+        return {
+          ...initialSettings,
+          ...parsed,
+          phoneNumbers: Array.isArray(parsed.phoneNumbers) && parsed.phoneNumbers.length > 0 ? parsed.phoneNumbers : initialSettings.phoneNumbers,
+          emailAddresses: Array.isArray(parsed.emailAddresses) && parsed.emailAddresses.length > 0 ? parsed.emailAddresses : initialSettings.emailAddresses,
+          businessAddresses: Array.isArray(parsed.businessAddresses) && parsed.businessAddresses.length > 0 ? parsed.businessAddresses : initialSettings.businessAddresses,
+          bkashAccounts: Array.isArray(parsed.bkashAccounts) && parsed.bkashAccounts.length > 0 ? parsed.bkashAccounts : initialSettings.bkashAccounts,
+          nagadAccounts: Array.isArray(parsed.nagadAccounts) && parsed.nagadAccounts.length > 0 ? parsed.nagadAccounts : initialSettings.nagadAccounts,
+          rocketAccounts: Array.isArray(parsed.rocketAccounts) && parsed.rocketAccounts.length > 0 ? parsed.rocketAccounts : initialSettings.rocketAccounts,
+          upayAccounts: Array.isArray(parsed.upayAccounts) && parsed.upayAccounts.length > 0 ? parsed.upayAccounts : initialSettings.upayAccounts,
+          bankAccounts: Array.isArray(parsed.bankAccounts) && parsed.bankAccounts.length > 0 ? parsed.bankAccounts : initialSettings.bankAccounts,
+          deliveryRules: Array.isArray(parsed.deliveryRules) && parsed.deliveryRules.length > 0 ? parsed.deliveryRules : initialSettings.deliveryRules,
+          defaultDeliveryCharge: typeof parsed.defaultDeliveryCharge === 'number' ? parsed.defaultDeliveryCharge : initialSettings.defaultDeliveryCharge
+        };
+      }
+    } catch (e) {
+      console.warn('Could not read saved settings from localStorage:', e);
+    }
+    return initialSettings;
+  });
   const [orders, setOrders] = useState<Order[]>(sampleOrders);
+
+  // Sync settings with Firestore database
+  useEffect(() => {
+    async function loadRemoteSettings() {
+      try {
+        const docRef = doc(db, 'settings', 'general');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const remoteData = snap.data() as Partial<WebsiteSettings>;
+          setSettings(prev => {
+            const merged: WebsiteSettings = {
+              ...prev,
+              ...remoteData,
+              phoneNumbers: Array.isArray(remoteData.phoneNumbers) && remoteData.phoneNumbers.length > 0 ? remoteData.phoneNumbers : prev.phoneNumbers,
+              emailAddresses: Array.isArray(remoteData.emailAddresses) && remoteData.emailAddresses.length > 0 ? remoteData.emailAddresses : prev.emailAddresses,
+              businessAddresses: Array.isArray(remoteData.businessAddresses) && remoteData.businessAddresses.length > 0 ? remoteData.businessAddresses : prev.businessAddresses,
+              bkashAccounts: Array.isArray(remoteData.bkashAccounts) ? remoteData.bkashAccounts : prev.bkashAccounts,
+              nagadAccounts: Array.isArray(remoteData.nagadAccounts) ? remoteData.nagadAccounts : prev.nagadAccounts,
+              rocketAccounts: Array.isArray(remoteData.rocketAccounts) ? remoteData.rocketAccounts : prev.rocketAccounts,
+              upayAccounts: Array.isArray(remoteData.upayAccounts) ? remoteData.upayAccounts : prev.upayAccounts,
+              bankAccounts: Array.isArray(remoteData.bankAccounts) ? remoteData.bankAccounts : prev.bankAccounts,
+              deliveryRules: Array.isArray(remoteData.deliveryRules) && remoteData.deliveryRules.length > 0 ? remoteData.deliveryRules : prev.deliveryRules,
+              defaultDeliveryCharge: typeof remoteData.defaultDeliveryCharge === 'number' ? remoteData.defaultDeliveryCharge : prev.defaultDeliveryCharge
+            };
+            try {
+              localStorage.setItem('jihan_store_settings', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Could not fetch settings from Firestore, using local settings:', err);
+      }
+    }
+    loadRemoteSettings();
+  }, []);
 
   // Wallets
   const [allCustomerWallets, setAllCustomerWallets] = useState<CustomerWallet[]>(sampleCustomerWallets);
@@ -427,6 +500,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryCharge: orderData.deliveryCharge || settings.deliveryChargeInsideCity,
       grandTotal: orderData.grandTotal || (cartSubtotal - cartDiscount + settings.deliveryChargeInsideCity),
       paymentMethod: orderData.paymentMethod || 'Cash on Delivery',
+      paymentDetails: orderData.paymentDetails,
       status: 'Pending',
       createdAt: new Date().toISOString(),
       notes: orderData.notes
@@ -573,14 +647,137 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Settings
   const updateSettings = (newSettings: Partial<WebsiteSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
-    showToast('Settings saved successfully');
+    setSettings(prev => {
+      // Find default active phone, email, address to keep legacy fields in sync
+      const nextPhones = newSettings.phoneNumbers || prev.phoneNumbers;
+      const nextEmails = newSettings.emailAddresses || prev.emailAddresses;
+      const nextAddresses = newSettings.businessAddresses || prev.businessAddresses;
+
+      const defPhone = nextPhones.find(p => p.isActive && p.isDefault) || nextPhones.find(p => p.isActive) || nextPhones[0];
+      const defEmail = nextEmails.find(e => e.isActive && e.isDefault) || nextEmails.find(e => e.isActive) || nextEmails[0];
+      const defAddr = nextAddresses.find(a => a.isActive && a.isDefault) || nextAddresses.find(a => a.isActive) || nextAddresses[0];
+
+      const updated: WebsiteSettings = {
+        ...prev,
+        ...newSettings,
+        phone: defPhone ? defPhone.number : prev.phone,
+        email: defEmail ? defEmail.email : prev.email,
+        address: defAddr ? (defAddr.title ? `${defAddr.title}: ${defAddr.address}` : defAddr.address) : prev.address
+      };
+
+      try {
+        localStorage.setItem('jihan_store_settings', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Could not write to localStorage:', e);
+      }
+
+      // Persist to Firestore
+      try {
+        setDoc(doc(db, 'settings', 'general'), updated, { merge: true }).catch(err => {
+          console.warn('Could not persist settings to Firestore:', err);
+        });
+      } catch (err) {
+        console.warn('Firestore setDoc call error:', err);
+      }
+
+      return updated;
+    });
+
+    showToast('সেটিংস সফলভাবে সংরক্ষিত ও আপডেট হয়েছে');
   };
 
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
     );
+  };
+
+  // Location-based Delivery Charge Calculator
+  const calculateDeliveryCharge = (
+    district?: string,
+    area?: string,
+    orderSubtotal?: number,
+    division?: string
+  ): { charge: number; isFree: boolean; ruleName: string; estimatedDays?: string } => {
+    const activeRules = (settings.deliveryRules || []).filter(r => r.isActive);
+    const subtotal = orderSubtotal ?? cartSubtotal;
+
+    // 1. If global free delivery threshold is exceeded
+    if (settings.freeDeliveryThreshold > 0 && subtotal >= settings.freeDeliveryThreshold) {
+      return {
+        charge: 0,
+        isFree: true,
+        ruleName: 'ফ্রি ডেলিভারি অফার (Free Shipping)',
+        estimatedDays: '২-৪ কার্যদিবস'
+      };
+    }
+
+    const normDistrict = (district || '').trim().toLowerCase();
+    const normArea = (area || '').trim().toLowerCase();
+    const normDivision = (division || '').trim().toLowerCase();
+
+    // Priority 1: Match specific area/upazila within the district
+    let matchedRule = activeRules.find(r => {
+      const rArea = (r.area || '').trim().toLowerCase();
+      const rDist = (r.district || '').trim().toLowerCase();
+      if (!rArea || rArea === 'all') return false;
+
+      // Rule must belong to the selected district or 'all'
+      const distMatches = !normDistrict || !rDist || rDist === 'all' || normDistrict.includes(rDist) || rDist.includes(normDistrict);
+      if (!distMatches) return false;
+
+      // Area match against selectedArea or string in normArea
+      return normArea.includes(rArea) || rArea.includes(normArea);
+    });
+
+    // Priority 2: Match specific district rule (e.g. "Chittagong", "Dhaka", etc. with area 'All' or empty)
+    if (!matchedRule && normDistrict) {
+      matchedRule = activeRules.find(r => {
+        const rDist = (r.district || '').trim().toLowerCase();
+        const rArea = (r.area || '').trim().toLowerCase();
+        const distMatches = rDist !== 'all' && (normDistrict.includes(rDist) || rDist.includes(normDistrict));
+        const areaIsBroad = !rArea || rArea === 'all';
+        return distMatches && areaIsBroad;
+      });
+    }
+
+    // Priority 3: Match division level rule (e.g. "Chittagong", "Dhaka" division)
+    if (!matchedRule && normDivision) {
+      matchedRule = activeRules.find(r => {
+        const rDiv = (r.division || '').trim().toLowerCase();
+        const rDist = (r.district || '').trim().toLowerCase();
+        return rDiv !== 'all' && (normDivision.includes(rDiv) || rDiv.includes(normDivision)) && (!rDist || rDist === 'all');
+      });
+    }
+
+    // Priority 4: Default or Nationwide fallback rule (isDefault or district='All' or division='All')
+    if (!matchedRule) {
+      matchedRule = activeRules.find(r => r.isDefault) ||
+                    activeRules.find(r => (r.district || '').toLowerCase() === 'all' || (r.division || '').toLowerCase() === 'all');
+    }
+
+    if (matchedRule) {
+      const isFree = matchedRule.isFreeDelivery || (
+        typeof matchedRule.minOrderAmount === 'number' &&
+        matchedRule.minOrderAmount > 0 &&
+        subtotal >= matchedRule.minOrderAmount
+      );
+      return {
+        charge: isFree ? 0 : matchedRule.deliveryCharge,
+        isFree,
+        ruleName: matchedRule.name,
+        estimatedDays: matchedRule.estimatedDays
+      };
+    }
+
+    // Fallback if no rules exist in the store
+    const fallbackCharge = typeof settings.defaultDeliveryCharge === 'number' ? settings.defaultDeliveryCharge : 130;
+    return {
+      charge: fallbackCharge,
+      isFree: fallbackCharge === 0,
+      ruleName: 'সাধারণ ডেলিভারি চার্জ (Standard Delivery)',
+      estimatedDays: '২-৪ কার্যদিবস'
+    };
   };
 
   // Admin Wallet Operations
@@ -795,6 +992,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         removeCoupon,
         settings,
         updateSettings,
+        calculateDeliveryCharge,
         notifications,
         markNotificationAsRead,
         toastMessage,

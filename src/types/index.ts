@@ -145,7 +145,25 @@ export interface Order {
   discount: number;
   deliveryCharge: number;
   grandTotal: number;
-  paymentMethod: 'Cash on Delivery' | 'Customer Wallet' | 'Online Gateway';
+  paymentMethod:
+    | 'Cash on Delivery'
+    | 'Customer Wallet'
+    | 'Online Gateway'
+    | 'bKash'
+    | 'Nagad'
+    | 'Rocket'
+    | 'Upay'
+    | 'Bank Transfer';
+  paymentDetails?: {
+    provider?: string;
+    accountNumber?: string;
+    accountType?: string;
+    senderNumber?: string;
+    trxId?: string;
+    bankName?: string;
+    branch?: string;
+    depositSlipInfo?: string;
+  };
   status: OrderStatus;
   createdAt: string;
   deliveredAt?: string;
@@ -237,14 +255,101 @@ export interface Coupon {
   isActive: boolean;
 }
 
+export interface ContactPhoneEntry {
+  id: string;
+  number: string;
+  label?: string; // e.g. "Main Support / হটলাইন", "Order Helpline", "WhatsApp Only"
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export interface ContactEmailEntry {
+  id: string;
+  email: string;
+  label?: string; // e.g. "Support / গ্রাহক সেবা", "Billing", "Official"
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export interface BusinessAddressEntry {
+  id: string;
+  title: string; // e.g. "Head Office / প্রধান কার্যালয়", "Uttara Branch", "Warehouse"
+  address: string;
+  city?: string;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export type MobileBankingType = 'Personal' | 'Merchant' | 'Agent';
+
+export interface MobileBankingAccount {
+  id: string;
+  provider: 'bKash' | 'Nagad' | 'Rocket' | 'Upay';
+  accountNumber: string;
+  accountType: MobileBankingType; // Personal, Merchant, Agent
+  label?: string; // e.g. "bKash Personal (Send Money)", "Nagad Merchant"
+  instructions?: string; // Guidance for customer when paying
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export interface BankAccountEntry {
+  id: string;
+  bankName: string; // e.g. "Islami Bank Bangladesh PLC"
+  accountName: string; // e.g. "Jihan Store"
+  accountNumber: string; // e.g. "20501234567890"
+  branch: string; // e.g. "Uttara Branch, Dhaka"
+  routingNumber?: string; // e.g. "125271234"
+  instructions?: string;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export interface DeliveryAreaRule {
+  id: string;
+  name: string; // e.g. "সন্দ্বীপ (Sandwip)", "চট্টগ্রাম (Chittagong)", "ঢাকা (Dhaka)", "অন্যান্য সকল জেলা"
+  division: string; // e.g. "Chittagong", "Dhaka", "All"
+  district: string; // e.g. "Chittagong", "Dhaka", "All"
+  area?: string; // Optional sub-area or upazila, e.g. "Sandwip", "All"
+  deliveryCharge: number;
+  isFreeDelivery: boolean;
+  minOrderAmount?: number; // Optional order threshold for free delivery
+  estimatedDays?: string; // e.g. "১-২ কার্যদিবস", "২-৪ কার্যদিবস"
+  isActive: boolean;
+  isDefault?: boolean; // Fallback rule for unspecified areas
+  notes?: string;
+}
+
 export interface WebsiteSettings {
   storeName: string;
   banglaStoreName: string;
   tagline: string;
+
+  // Single fallbacks for backward compatibility
   phone: string;
   email: string;
   whatsapp: string;
   address: string;
+
+  // Multiple Entries Arrays (Admin managed & real-time synced)
+  phoneNumbers: ContactPhoneEntry[];
+  emailAddresses: ContactEmailEntry[];
+  businessAddresses: BusinessAddressEntry[];
+
+  // Multiple Mobile Banking Accounts
+  bkashAccounts: MobileBankingAccount[];
+  nagadAccounts: MobileBankingAccount[];
+  rocketAccounts: MobileBankingAccount[];
+  upayAccounts: MobileBankingAccount[];
+
+  // Multiple Bank Accounts
+  bankAccounts: BankAccountEntry[];
+
+  // Location-based Delivery Charge Rules
+  deliveryRules: DeliveryAreaRule[];
+  defaultDeliveryCharge: number;
+
+  // Social & Policy
   facebook: string;
   instagram: string;
   tiktok: string;

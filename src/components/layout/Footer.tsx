@@ -15,6 +15,20 @@ import {
 export const Footer: React.FC = () => {
   const { setCurrentRoute, setIsAdminMode, settings } = useStore();
 
+  const activePhones = (settings.phoneNumbers || []).filter(p => p.isActive);
+  const activeEmails = (settings.emailAddresses || []).filter(e => e.isActive);
+  const activeAddresses = (settings.businessAddresses || []).filter(a => a.isActive);
+
+  const defaultPhone = activePhones.find(p => p.isDefault) || activePhones[0];
+  const defaultEmail = activeEmails.find(e => e.isDefault) || activeEmails[0];
+  const defaultAddress = activeAddresses.find(a => a.isDefault) || activeAddresses[0];
+
+  const hasBkash = (settings.bkashAccounts || []).some(a => a.isActive);
+  const hasNagad = (settings.nagadAccounts || []).some(a => a.isActive);
+  const hasRocket = (settings.rocketAccounts || []).some(a => a.isActive);
+  const hasUpay = (settings.upayAccounts || []).some(a => a.isActive);
+  const hasBank = (settings.bankAccounts || []).some(a => a.isActive);
+
   return (
     <footer className="bg-slate-900 text-slate-300 pt-12 pb-24 md:pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -70,17 +84,75 @@ export const Footer: React.FC = () => {
               {settings.aboutUsText.substring(0, 160)}...
             </p>
             <div className="space-y-2 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>{settings.address}</span>
+              <div className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  {defaultAddress
+                    ? `${defaultAddress.title ? defaultAddress.title + ': ' : ''}${defaultAddress.address}${defaultAddress.city ? ', ' + defaultAddress.city : ''}`
+                    : settings.address}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-mono">{settings.phone}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-white font-bold">
+                    {defaultPhone ? defaultPhone.number : settings.phone}
+                  </span>
+                  {activePhones.length > 1 && (
+                    <button
+                      onClick={() => setCurrentRoute('contact')}
+                      className="text-[11px] text-amber-400 hover:underline"
+                    >
+                      (+{activePhones.length - 1} আরও নম্বর)
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-mono">{settings.email}</span>
+                <span className="font-mono">
+                  {defaultEmail ? defaultEmail.email : settings.email}
+                </span>
+              </div>
+            </div>
+
+            {/* Accepted Active Payment Badges */}
+            <div className="pt-2">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-2">
+                নিরাপদ পেমেন্ট পদ্ধতিসমূহ (Accepted Payment Methods)
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono font-bold">
+                <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200">
+                  COD (ক্যাশ অন ডেলিভারি)
+                </span>
+                <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-amber-400">
+                  Wallet
+                </span>
+                {hasBkash && (
+                  <span className="px-2 py-1 rounded bg-pink-950/70 border border-pink-700/60 text-pink-300">
+                    bKash
+                  </span>
+                )}
+                {hasNagad && (
+                  <span className="px-2 py-1 rounded bg-orange-950/70 border border-orange-700/60 text-orange-300">
+                    Nagad
+                  </span>
+                )}
+                {hasRocket && (
+                  <span className="px-2 py-1 rounded bg-purple-950/70 border border-purple-700/60 text-purple-300">
+                    Rocket
+                  </span>
+                )}
+                {hasUpay && (
+                  <span className="px-2 py-1 rounded bg-teal-950/70 border border-teal-700/60 text-teal-300">
+                    Upay
+                  </span>
+                )}
+                {hasBank && (
+                  <span className="px-2 py-1 rounded bg-blue-950/70 border border-blue-700/60 text-blue-300">
+                    Bank Transfer
+                  </span>
+                )}
               </div>
             </div>
           </div>

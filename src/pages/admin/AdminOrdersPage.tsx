@@ -226,6 +226,50 @@ export const AdminOrdersPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Payment Details Section */}
+            <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-1.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-slate-900">পেমেন্ট মেথড:</span>
+                <span className="font-bold text-blue-900 bg-white px-2.5 py-0.5 rounded border border-blue-200">
+                  {selectedOrder.paymentMethod}
+                </span>
+              </div>
+              {selectedOrder.paymentDetails && (
+                <div className="pt-2 border-t border-blue-200/60 space-y-1 font-mono text-[11px] text-slate-700">
+                  {selectedOrder.paymentDetails.accountNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">গৃহীতার অ্যাকাউন্ট:</span>
+                      <span className="font-bold">{selectedOrder.paymentDetails.accountNumber} ({selectedOrder.paymentDetails.accountType || selectedOrder.paymentDetails.provider})</span>
+                    </div>
+                  )}
+                  {selectedOrder.paymentDetails.senderNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">প্রেরকের নম্বর:</span>
+                      <span className="font-bold">{selectedOrder.paymentDetails.senderNumber}</span>
+                    </div>
+                  )}
+                  {selectedOrder.paymentDetails.trxId && (
+                    <div className="flex justify-between text-blue-950 font-bold bg-white p-1.5 rounded border border-blue-200">
+                      <span className="font-sans text-blue-800">TrxID:</span>
+                      <span>{selectedOrder.paymentDetails.trxId}</span>
+                    </div>
+                  )}
+                  {selectedOrder.paymentDetails.bankName && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">ব্যাংক ও শাখা:</span>
+                      <span className="font-sans font-bold">{selectedOrder.paymentDetails.bankName} ({selectedOrder.paymentDetails.branch})</span>
+                    </div>
+                  )}
+                  {selectedOrder.paymentDetails.depositSlipInfo && (
+                    <div className="flex justify-between text-blue-950 font-bold bg-white p-1.5 rounded border border-blue-200">
+                      <span className="font-sans text-blue-800">ডিপোজিট স্লিপ / রেফারেন্স:</span>
+                      <span>{selectedOrder.paymentDetails.depositSlipInfo}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end pt-2">
               <Button size="sm" variant="primary" onClick={() => setSelectedOrder(null)}>
                 সম্পন্ন

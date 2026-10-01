@@ -11,7 +11,9 @@ import {
   AlertCircle,
   HelpCircle,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export const WalletPage: React.FC = () => {
@@ -20,7 +22,8 @@ export const WalletPage: React.FC = () => {
     walletTransactions,
     requestDeposit,
     requestWithdrawal,
-    showToast
+    showToast,
+    settings
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'Completed' | 'Rejected'>('All');
@@ -261,32 +264,77 @@ export const WalletPage: React.FC = () => {
         title="ওয়ালেটে টাকা জমা দিন (Deposit Request)"
       >
         <form onSubmit={handleDepositSubmit} className="space-y-4 text-left">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950 space-y-1">
-            <span className="font-bold">আমাদের মার্চেন্ট/পার্সোনাল নম্বর:</span>
-            <p className="font-mono font-semibold text-blue-900">bKash / Nagad: 01800-000000</p>
-            <p className="text-[11px] text-slate-600">
-              টাকা পাঠানোর পর নিচের ফর্মে আপনার নম্বর এবং প্রাপ্ত Transaction ID (TrxID) দিয়ে সাবমিট করুন। অ্যাডমিন অনুমোদনের পর ব্যালেন্স যুক্ত হবে।
-            </p>
-          </div>
+          {/* Dynamic Active Accounts Notice */}
+          {(() => {
+            const allActiveMethods: { key: string; name: string; number: string; type: string; instructions?: string }[] = [];
+            (settings.bkashAccounts || []).filter(a => a.isActive).forEach(a => {
+              allActiveMethods.push({ key: `bKash-${a.id}`, name: `bKash (${a.accountType})`, number: a.accountNumber, type: a.accountType, instructions: a.instructions });
+            });
+            (settings.nagadAccounts || []).filter(a => a.isActive).forEach(a => {
+              allActiveMethods.push({ key: `Nagad-${a.id}`, name: `Nagad (${a.accountType})`, number: a.accountNumber, type: a.accountType, instructions: a.instructions });
+            });
+            (settings.rocketAccounts || []).filter(a => a.isActive).forEach(a => {
+              allActiveMethods.push({ key: `Rocket-${a.id}`, name: `Rocket (${a.accountType})`, number: a.accountNumber, type: a.accountType, instructions: a.instructions });
+            });
+            (settings.upayAccounts || []).filter(a => a.isActive).forEach(a => {
+              allActiveMethods.push({ key: `Upay-${a.id}`, name: `Upay (${a.accountType})`, number: a.accountNumber, type: a.accountType, instructions: a.instructions });
+            });
+            (settings.bankAccounts || []).filter(a => a.isActive).forEach(a => {
+              allActiveMethods.push({ key: `Bank-${a.id}`, name: `${a.bankName} (${a.branch})`, number: a.accountNumber, type: 'Bank', instructions: a.instructions });
+            });
 
-          {depositError && (
-            <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-              {depositError}
-            </div>
-          )}
+            const current = allActiveMethods.find(m => m.key === depositMethod) || allActiveMethods[0];
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">পেমেন্ট মেথড নির্বাচন করুন</label>
-            <select
-              value={depositMethod}
-              onChange={e => setDepositMethod(e.target.value)}
-              className="w-full text-xs rounded-lg border border-slate-300 p-2 bg-white"
-            >
-              <option value="bKash Personal">bKash (বিকাশ পার্সোনাল)</option>
-              <option value="Nagad Personal">Nagad (নগদ পার্সোনাল)</option>
-              <option value="Bank Transfer">Bank Transfer (ব্যাংক ট্রান্সফার)</option>
-            </select>
-          </div>
+            return (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">ডিপোজিট মেথড ও অ্যাকাউন্ট নির্বাচন করুন</label>
+                  <select
+                    value={depositMethod}
+                    onChange={e => setDepositMethod(e.target.value)}
+                    className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white font-medium"
+                  >
+                    {allActiveMethods.length > 0 ? (
+                      allActiveMethods.map(m => (
+                        <option key={m.key} value={m.key}>
+                          {m.name} - {m.number}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Manual Contact">কাস্টমার সার্ভিসে যোগাযোগ করুন</option>
+                    )}
+                  </select>
+                </div>
+
+                {current && (
+                  <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-700">টাকা পাঠানোর নম্বর/অ্যাকাউন্ট:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-blue-950">{current.number}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(current.number);
+                            showToast('অ্যাকাউন্ট নম্বর কপি করা হয়েছে!');
+                          }}
+                          className="px-2 py-0.5 rounded bg-white border border-blue-200 text-blue-900 font-bold hover:bg-blue-100 flex items-center gap-1 text-[11px]"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>কপি</span>
+                        </button>
+                      </div>
+                    </div>
+                    {current.instructions && (
+                      <p className="text-[11px] text-slate-600 bg-white/70 p-2 rounded border border-blue-100">
+                        {current.instructions}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <Input
             label="জমার পরিমাণ (Amount in BDT ৳)*"

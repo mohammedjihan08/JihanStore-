@@ -198,6 +198,40 @@ export const OrderDetailPage: React.FC = () => {
               <div className="text-[11px] text-slate-500 pt-1">
                 পেমেন্ট মেথড: <strong className="text-slate-800">{order.paymentMethod}</strong>
               </div>
+              {order.paymentDetails && (
+                <div className="mt-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-700 space-y-1">
+                  {order.paymentDetails.accountNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">গৃহীতার অ্যাকাউন্ট:</span>
+                      <span className="font-mono font-bold">{order.paymentDetails.accountNumber} ({order.paymentDetails.accountType || order.paymentDetails.provider})</span>
+                    </div>
+                  )}
+                  {order.paymentDetails.senderNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">প্রেরকের নম্বর:</span>
+                      <span className="font-mono font-semibold">{order.paymentDetails.senderNumber}</span>
+                    </div>
+                  )}
+                  {order.paymentDetails.trxId && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Transaction ID (TrxID):</span>
+                      <span className="font-mono font-bold text-blue-900">{order.paymentDetails.trxId}</span>
+                    </div>
+                  )}
+                  {order.paymentDetails.bankName && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">ব্যাংক ও শাখা:</span>
+                      <span className="font-semibold">{order.paymentDetails.bankName} ({order.paymentDetails.branch})</span>
+                    </div>
+                  )}
+                  {order.paymentDetails.depositSlipInfo && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">রেফারেন্স / স্লিপ:</span>
+                      <span className="font-mono font-semibold">{order.paymentDetails.depositSlipInfo}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

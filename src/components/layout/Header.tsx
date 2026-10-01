@@ -61,13 +61,20 @@ export const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4 text-slate-300">
-            <a
-              href={`tel:${settings.phone}`}
-              className="hover:text-amber-300 transition-colors flex items-center gap-1"
-            >
-              <Phone className="w-3 h-3 text-amber-400" />
-              <span className="font-mono">{settings.phone}</span>
-            </a>
+            {(() => {
+              const activePhones = (settings.phoneNumbers || []).filter(p => p.isActive);
+              const defPhone = activePhones.find(p => p.isDefault) || activePhones[0];
+              const phoneToShow = defPhone ? defPhone.number : settings.phone;
+              return (
+                <a
+                  href={`tel:${phoneToShow}`}
+                  className="hover:text-amber-300 transition-colors flex items-center gap-1"
+                >
+                  <Phone className="w-3 h-3 text-amber-400" />
+                  <span className="font-mono">{phoneToShow}</span>
+                </a>
+              );
+            })()}
           </div>
         </div>
       </div>

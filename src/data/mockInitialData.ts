@@ -271,10 +271,175 @@ export const initialSettings: WebsiteSettings = {
   storeName: 'Jihan Store',
   banglaStoreName: 'জিহান স্টোর',
   tagline: 'বিশ্বাসের সাথে অনলাইন শপিং',
-  phone: '+880 1800-000000',
-  email: 'mohammedjihan08@gmail.com',
-  whatsapp: '+880 1800-000000',
-  address: 'Plot 12, Road 4, Sector 7, Uttara, Dhaka-1230, Bangladesh',
+  phone: '+880 1867-841638',
+  email: 'jihanstore009@gmail.com',
+  whatsapp: '+880 1867-841638',
+  address: 'CG72+R2, Sarikait 4301, Sandwip, Chittagong, Bangladesh',
+
+  phoneNumbers: [
+    {
+      id: 'ph-1',
+      number: '+880 1867-841638',
+      label: 'হটলাইন ও সরাসরি কল (Main Helpline)',
+      isActive: true,
+      isDefault: true
+    },
+    {
+      id: 'ph-2',
+      number: '+880 1867-841638',
+      label: 'WhatsApp কাস্টমার সাপোর্ট (WhatsApp Support)',
+      isActive: true,
+      isDefault: false
+    }
+  ],
+
+  emailAddresses: [
+    {
+      id: 'em-1',
+      email: 'jihanstore009@gmail.com',
+      label: 'গ্রাহক সহায়তা ও অর্ডার (Customer Support - Gmail 1)',
+      isActive: true,
+      isDefault: true
+    },
+    {
+      id: 'em-2',
+      email: 'jihanstoreofficial009@gmail.com',
+      label: 'অফিসিয়াল যোগাযোগ (Official Inquiries - Gmail 2)',
+      isActive: true,
+      isDefault: false
+    }
+  ],
+
+  businessAddresses: [
+    {
+      id: 'addr-1',
+      title: 'প্রধান কার্যালয় ও স্টোর (Main Office & Store)',
+      address: 'CG72+R2, Sarikait 4301',
+      city: 'Sandwip, Chittagong, Bangladesh',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  bkashAccounts: [
+    {
+      id: 'bk-1',
+      provider: 'bKash',
+      accountNumber: '01867-841638',
+      accountType: 'Personal',
+      label: 'বিকাশ পার্সোনাল (Send Money)',
+      instructions: 'বিকাশ অ্যাপ থেকে Send Money অপশনে গিয়ে টাকা পাঠিয়ে TrxID লিখুন।',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  nagadAccounts: [
+    {
+      id: 'ng-1',
+      provider: 'Nagad',
+      accountNumber: '01867-841638',
+      accountType: 'Personal',
+      label: 'নগদ পার্সোনাল (Send Money)',
+      instructions: 'নগদ অ্যাপ বা *167# ডায়াল করে Send Money করুন এবং TrxID দিন।',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  rocketAccounts: [
+    {
+      id: 'rk-1',
+      provider: 'Rocket',
+      accountNumber: '01867-841638-7',
+      accountType: 'Personal',
+      label: 'রকেট পার্সোনাল (Send Money)',
+      instructions: '১২ ডিজিটের রকেট একাউন্ট নম্বরে Send Money করুন।',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  upayAccounts: [
+    {
+      id: 'up-1',
+      provider: 'Upay',
+      accountNumber: '01867-841638',
+      accountType: 'Personal',
+      label: 'উপায় পার্সোনাল (Send Money)',
+      instructions: 'উপায় অ্যাপ থেকে Send Money সম্পন্ন করে TrxID সংরক্ষণ করুন।',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  bankAccounts: [
+    {
+      id: 'bnk-1',
+      bankName: 'Islami Bank Bangladesh PLC',
+      accountName: 'Jihan Store',
+      accountNumber: '20503610200000000',
+      branch: 'Sandwip Branch, Chittagong',
+      routingNumber: '125271234',
+      instructions: 'অনলাইন ব্যাংকিং বা ব্যাংক শাখায় জমা করে ডিপোজিট স্লিপ/রেফারেন্স দিন।',
+      isActive: true,
+      isDefault: true
+    }
+  ],
+
+  deliveryRules: [
+    {
+      id: 'del-sandwip',
+      name: 'সন্দ্বীপ উপজেলা (Sandwip Upazila)',
+      division: 'Chittagong',
+      district: 'Chittagong',
+      area: 'Sandwip (সন্দ্বীপ)',
+      deliveryCharge: 0,
+      isFreeDelivery: true,
+      estimatedDays: '১-২ কার্যদিবস (ফ্রি হোম ডেলিভারি)',
+      isActive: true,
+      notes: 'হেড অফিস ও লোকাল এরিয়া হিসেবে সম্পূর্ণ ফ্রি ডেলিভারি'
+    },
+    {
+      id: 'del-chittagong',
+      name: 'চট্টগ্রাম জেলা (Chittagong District)',
+      division: 'Chittagong',
+      district: 'Chittagong',
+      area: 'All',
+      deliveryCharge: 130,
+      isFreeDelivery: false,
+      estimatedDays: '২-৩ কার্যদিবস',
+      isActive: true,
+      notes: 'চট্টগ্রাম জেলার যেকোনো থানা বা উপজেলা'
+    },
+    {
+      id: 'del-dhaka',
+      name: 'ঢাকা জেলা ও মেট্রো (Dhaka District & Metro)',
+      division: 'Dhaka',
+      district: 'Dhaka',
+      area: 'All',
+      deliveryCharge: 130,
+      isFreeDelivery: false,
+      estimatedDays: '১-৩ কার্যদিবস',
+      isActive: true,
+      notes: 'ঢাকা সিটি কর্পোরেশন ও ঢাকা জেলা'
+    },
+    {
+      id: 'del-all-others',
+      name: 'অন্যান্য সকল জেলা (All Other Districts - Nationwide)',
+      division: 'All',
+      district: 'All',
+      area: 'All',
+      deliveryCharge: 130,
+      isFreeDelivery: false,
+      estimatedDays: '২-৪ কার্যদিবস',
+      isActive: true,
+      isDefault: true,
+      notes: 'বাংলাদেশের অবশিষ্ট সকল জেলা ও প্রত্যন্ত অঞ্চলের জন্য প্রযোজ্য'
+    }
+  ],
+  defaultDeliveryCharge: 130,
+
   facebook: 'https://facebook.com/jihanstore',
   instagram: 'https://instagram.com/jihanstore',
   tiktok: 'https://tiktok.com/@jihanstore',
