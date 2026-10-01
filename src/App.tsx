@@ -42,6 +42,7 @@ import { AdminBannersPage } from './pages/admin/AdminBannersPage';
 import { AdminAdsPage } from './pages/admin/AdminAdsPage';
 import { AdminCouponsPage } from './pages/admin/AdminCouponsPage';
 import { AdminNotificationsPage } from './pages/admin/AdminNotificationsPage';
+import { AdminTelegramPage } from './pages/admin/AdminTelegramPage';
 import { AdminWebsiteSettingsPage } from './pages/admin/AdminWebsiteSettingsPage';
 import { AdminLogoManagementPage } from './pages/admin/AdminLogoManagementPage';
 import { AdminDataExportPage } from './pages/admin/AdminDataExportPage';
@@ -93,6 +94,7 @@ const AppContent: React.FC = () => {
         {adminSection === 'ads' && <AdminAdsPage />}
         {adminSection === 'coupons' && <AdminCouponsPage />}
         {adminSection === 'notifications' && <AdminNotificationsPage />}
+        {adminSection === 'telegram' && <AdminTelegramPage />}
         {adminSection === 'settings' && <AdminWebsiteSettingsPage />}
         {adminSection === 'logo' && <AdminLogoManagementPage />}
         {adminSection === 'export' && <AdminDataExportPage />}

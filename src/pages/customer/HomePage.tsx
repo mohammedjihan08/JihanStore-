@@ -40,7 +40,7 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-10 md:space-y-14">
+    <div className="space-y-8 md:space-y-14 w-full max-w-full overflow-hidden">
       {/* Optional Home Top Ad */}
       {homeTopAd && (
         <aside className="w-full bg-linear-to-r from-blue-900 to-blue-950 text-white rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm border border-amber-500/30">

@@ -66,14 +66,14 @@ export const Logo: React.FC<LogoProps> = ({
   }
 
   return (
-    <div className={`inline-flex items-center gap-3 select-none ${className}`}>
+    <div className={`inline-flex items-center gap-2 sm:gap-3 select-none shrink min-w-0 ${className}`}>
       {/* Brand Icon */}
       <div className="relative shrink-0">
         <svg
           viewBox="0 0 44 44"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-10 h-10"
+          className="w-8 h-8 sm:w-10 sm:h-10"
         >
           {/* Royal Blue Protective Shield */}
           <path
@@ -99,17 +99,17 @@ export const Logo: React.FC<LogoProps> = ({
       </div>
 
       {/* Typography Lockup */}
-      <div className="flex flex-col leading-tight">
-        <div className="flex items-baseline gap-1.5">
+      <div className="flex flex-col leading-tight min-w-0">
+        <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap sm:flex-nowrap">
           <span
-            className={`font-extrabold tracking-tight text-lg md:text-xl font-sans ${
+            className={`font-black tracking-tight text-base sm:text-lg md:text-xl font-sans whitespace-nowrap ${
               isLight ? 'text-white' : 'text-blue-950'
             }`}
           >
             JIHAN STORE
           </span>
           <span
-            className={`font-semibold text-xs md:text-sm font-sans ${
+            className={`font-semibold text-[11px] sm:text-xs md:text-sm font-sans whitespace-nowrap ${
               isLight ? 'text-amber-300' : 'text-amber-600'
             }`}
           >
@@ -118,7 +118,7 @@ export const Logo: React.FC<LogoProps> = ({
         </div>
         {showTagline && (
           <span
-            className={`text-[11px] font-medium tracking-normal mt-0.5 ${
+            className={`text-[10px] sm:text-[11px] font-medium tracking-normal mt-0.5 truncate ${
               isLight ? 'text-slate-300' : 'text-slate-500'
             }`}
           >

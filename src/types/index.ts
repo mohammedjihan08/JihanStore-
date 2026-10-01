@@ -36,6 +36,7 @@ export type AdminSection =
   | 'ads'
   | 'coupons'
   | 'notifications'
+  | 'telegram'
   | 'settings'
   | 'logo'
   | 'export'

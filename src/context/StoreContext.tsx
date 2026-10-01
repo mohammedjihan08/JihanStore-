@@ -508,6 +508,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
+
+    // Trigger Server-Side Telegram Notification for New Order (Non-blocking)
+    try {
+      fetch('/api/telegram/notify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder),
+      }).catch(err => console.warn('Telegram order notification failed:', err));
+    } catch (e) {
+      console.warn('Telegram notify error:', e);
+    }
+
     return newOrder;
   };
 
@@ -536,6 +548,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       )
     );
     showToast('Deposit request submitted for verification');
+
+    // Trigger Telegram notification for deposit request
+    try {
+      fetch('/api/telegram/notify-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'নতুন ওয়ালেট ডিপোজিট রিকোয়েস্ট',
+          customerName: currentUser.name,
+          amount,
+          method,
+          trxId,
+          message: `অ্যাকাউন্ট: ${accountNumber}`
+        }),
+      }).catch(err => console.warn('Telegram deposit alert failed:', err));
+    } catch (e) {
+      console.warn('Telegram notify error:', e);
+    }
   };
 
   const requestWithdrawal = (amount: number, method: string, accountNumber: string): boolean => {

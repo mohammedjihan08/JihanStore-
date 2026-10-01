@@ -30,8 +30,8 @@ export const Footer: React.FC = () => {
   const hasBank = (settings.bankAccounts || []).some(a => a.isActive);
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-12 pb-24 md:pb-12 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <footer className="bg-slate-900 text-slate-300 pt-10 sm:pt-12 pb-24 md:pb-12 border-t border-slate-800 w-full max-w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full overflow-hidden">
         {/* Trust Value Props Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-10 border-b border-slate-800">
           <div className="flex items-start gap-3.5">

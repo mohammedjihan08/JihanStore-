@@ -26,7 +26,8 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  Send
 } from 'lucide-react';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,6 +79,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { section: 'ads', label: 'বিজ্ঞাপন (Ad Management)', icon: Megaphone },
     { section: 'coupons', label: 'কুপন (Coupons)', icon: Tag },
     { section: 'notifications', label: 'নোটিফিকেশন (Alerts)', icon: Bell },
+    { section: 'telegram', label: 'টেলিগ্রাম নোটিফিকেশন', icon: Send },
     { section: 'settings', label: 'ওয়েবসাইট সেটিংস', icon: Settings },
     { section: 'logo', label: 'লোগো ম্যানেজমেন্ট', icon: Sparkles },
     { section: 'export', label: 'ডাটা এক্সপোর্ট (Export)', icon: FileSpreadsheet },
@@ -92,7 +94,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-100 text-slate-900 font-sans">
+    <div className="min-h-screen flex bg-slate-100 text-slate-900 font-sans w-full max-w-full overflow-x-hidden">
       {/* Desktop Fixed Sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 select-none">
         {/* Brand Header */}
@@ -197,7 +199,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden">
           {children}
         </main>
       </div>
