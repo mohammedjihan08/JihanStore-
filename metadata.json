@@ -1,0 +1,6 @@
+{
+  "name": "Jihan Store – জিহান স্টোর",
+  "description": "বিশ্বাসের সাথে অনলাইন শপিং – Jihan Store is a modern, premium e-commerce platform offering online shopping with fast delivery and customer wallet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
