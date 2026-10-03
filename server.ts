@@ -18,13 +18,20 @@ const isProd = process.env.NODE_ENV === 'production';
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Ensure public/uploads/logo directory exists
+// Ensure public/uploads directories exist
 const UPLOADS_DIR = path.resolve(__dirname, 'public/uploads/logo');
+const PRODUCT_UPLOADS_DIR = path.resolve(__dirname, 'public/uploads/products');
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
-// Serve static uploads BEFORE Vite middlewares
+if (!fs.existsSync(PRODUCT_UPLOADS_DIR)) {
+  fs.mkdirSync(PRODUCT_UPLOADS_DIR, { recursive: true });
+}
+
+// Serve static uploads and assets BEFORE Vite middlewares
 app.use('/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
+app.use('/assets', express.static(path.resolve(__dirname, 'public/assets')));
+app.use('/src/assets/images', express.static(path.resolve(__dirname, 'src/assets/images')));
 
 // Persistent Logo Configuration Path
 const LOGO_CONFIG_PATH = path.resolve(__dirname, '.logo-config.json');
@@ -641,6 +648,67 @@ app.delete('/api/logo', (req, res) => {
     res.status(500).json({
       success: false,
       message: `লোগো ডিলিট ব্যর্থ: ${err?.message || 'সার্ভার ত্রুটি'}`,
+    });
+  }
+});
+
+// ==========================================
+// PRODUCT IMAGE UPLOAD & ASSETS
+// ==========================================
+
+app.post('/api/products/upload-image', (req, res) => {
+  try {
+    const { dataUrl, fileName, onlineUrl } = req.body || {};
+
+    if (onlineUrl && typeof onlineUrl === 'string' && onlineUrl.trim()) {
+      return res.json({
+        success: true,
+        url: onlineUrl.trim(),
+        message: 'অনলাইন ইমেজ লিংক সফলভাবে গৃহীত হয়েছে।'
+      });
+    }
+
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'কোনো ইমেজ ডাটা পাওয়া যায়নি।'
+      });
+    }
+
+    const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({
+        success: false,
+        message: 'অকার্যকর ইমেজ ফরম্যাট। অনুগ্রহ করে PNG, SVG, JPG বা WebP ইমেজ দিন।'
+      });
+    }
+
+    let ext = matches[1].toLowerCase();
+    if (ext === 'svg+xml') ext = 'svg';
+    if (ext === 'jpeg') ext = 'jpg';
+
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const newFileName = `prod_${timestamp}_${randomStr}.${ext}`;
+    const targetFilePath = path.join(PRODUCT_UPLOADS_DIR, newFileName);
+
+    fs.writeFileSync(targetFilePath, buffer);
+
+    const publicUrl = `/uploads/products/${newFileName}`;
+
+    res.json({
+      success: true,
+      url: publicUrl,
+      message: 'পণ্যের ইমেজ সফলভাবে আপলোড হয়েছে!'
+    });
+  } catch (err: any) {
+    console.error('Product image upload error:', err);
+    res.status(500).json({
+      success: false,
+      message: `ইমেজ আপলোড ব্যর্থ: ${err?.message || 'সার্ভার ত্রুটি'}`
     });
   }
 });

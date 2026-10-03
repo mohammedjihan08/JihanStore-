@@ -78,5 +78,24 @@ service cloud.firestore {
       allow list: if request.query.limit <= 20;
       allow write: if isValidId(settingId) && (isAdmin() || isSignedIn());
     }
+
+    // Products Catalog Collection (Publicly readable, Admin/Staff writable)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if (isAdmin() || isSignedIn());
+    }
+
+    // Product Categories Collection (Publicly readable)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if (isAdmin() || isSignedIn());
+    }
+
+    // Customer Orders Collection (Public order placement, Customer/Admin readable)
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update: if (isAdmin() || isSignedIn());
+      allow delete: if isAdmin();
+    }
   }
 }

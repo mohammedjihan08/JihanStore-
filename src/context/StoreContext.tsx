@@ -9,6 +9,11 @@ import {
   ADMIN_EMAIL
 } from '../services/authService';
 import {
+  persistProductToFirestore,
+  deleteProductFromFirestore,
+  fetchProductsFromFirestore
+} from '../services/productService';
+import {
   CustomerRoute,
   AdminSection,
   Product,
@@ -183,7 +188,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlist, setWishlist] = useState<string[]>(['prod-2']);
 
   // Catalog
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('jihan_store_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return initialProducts;
+  });
   const [categories] = useState<ProductCategory[]>(initialCategories);
   const [banners, setBanners] = useState<PromoBanner[]>(initialBanners);
   const [ads, setAds] = useState<Advertisement[]>(initialAds);
@@ -293,6 +309,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     loadRemoteSettings();
+  }, []);
+
+  // Sync products with Firestore Database
+  useEffect(() => {
+    async function loadRemoteProducts() {
+      try {
+        const remote = await fetchProductsFromFirestore();
+        if (remote && remote.length > 0) {
+          setProducts(prev => {
+            const map = new Map<string, Product>();
+            prev.forEach(p => map.set(p.id, p));
+            remote.forEach(p => map.set(p.id, p));
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem('jihan_store_products', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        } else {
+          // First time initialization in Firestore: save initial products
+          initialProducts.forEach(p => {
+            persistProductToFirestore(p).catch(() => {});
+          });
+        }
+      } catch (err) {
+        console.warn('Could not sync products with Firestore:', err);
+      }
+    }
+    loadRemoteProducts();
   }, []);
 
   // Wallets
@@ -644,18 +689,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Catalog management
   const updateProduct = (updated: Product) => {
-    setProducts(prev => prev.map(p => (p.id === updated.id ? updated : p)));
-    showToast('Product updated successfully');
+    setProducts(prev => {
+      const next = prev.map(p => (p.id === updated.id ? updated : p));
+      try {
+        localStorage.setItem('jihan_store_products', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    persistProductToFirestore(updated).catch(() => {});
+    showToast('পণ্য সফলভাবে আপডেট হয়েছে');
   };
 
   const addProduct = (newProduct: Product) => {
-    setProducts(prev => [newProduct, ...prev]);
-    showToast('New product created');
+    setProducts(prev => {
+      const next = [newProduct, ...prev];
+      try {
+        localStorage.setItem('jihan_store_products', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    persistProductToFirestore(newProduct).catch(() => {});
+    showToast('নতুন পণ্য ডাটাবেজে সংরক্ষিত হয়েছে');
   };
 
   const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    showToast('Product deleted');
+    setProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      try {
+        localStorage.setItem('jihan_store_products', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    deleteProductFromFirestore(id).catch(() => {});
+    showToast('পণ্য সফলভাবে মুছে ফেলা হয়েছে');
   };
 
   // Ads & Banners

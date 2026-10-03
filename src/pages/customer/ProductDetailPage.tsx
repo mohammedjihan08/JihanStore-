@@ -88,8 +88,11 @@ export const ProductDetailPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           <div className="relative aspect-4/3 sm:aspect-16/10 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
             <img
-              src={selectedImage || product.images[0]}
+              src={(selectedImage || product.images[0] || '').replace('/src/assets/images/', '/assets/images/')}
               alt={product.name}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="%23f8fafc"><rect width="400" height="400" fill="%23f1f5f9"/><circle cx="200" cy="180" r="60" fill="%23e2e8f0"/><path d="M140 280 Q200 230 260 280" stroke="%23cbd5e1" stroke-width="12" fill="none" stroke-linecap="round"/><text x="200" y="325" font-family="sans-serif" font-size="16" font-weight="bold" fill="%2394a3b8" text-anchor="middle">Jihan Store Official</text></svg>`;
+              }}
               className="w-full h-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
@@ -264,9 +267,9 @@ export const ProductDetailPage: React.FC = () => {
               size="lg"
               disabled={product.stock <= 0}
               onClick={handleBuyNow}
-              className="gap-2"
+              className="gap-2 font-bold cursor-pointer"
             >
-              <span>এখনই কিনুন</span>
+              <span>🛒 অর্ডার নাও</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
