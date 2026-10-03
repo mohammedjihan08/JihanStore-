@@ -20,7 +20,7 @@ import {
   ExternalLink,
   Sparkles
 } from 'lucide-react';
-import { uploadProductImage } from '../../services/productService';
+import { uploadProductImage, deleteProductImage } from '../../services/productService';
 
 export const AdminProductsPage: React.FC = () => {
   const { products, categories, updateProduct, addProduct, deleteProduct, showToast } = useStore();
@@ -131,11 +131,16 @@ export const AdminProductsPage: React.FC = () => {
     }
   };
 
-  const handleRemoveImage = (indexToRemove: number) => {
+  const handleRemoveImage = async (indexToRemove: number) => {
+    const targetUrl = formData.images?.[indexToRemove];
+    if (targetUrl) {
+      deleteProductImage(targetUrl).catch(() => {});
+    }
     setFormData(prev => ({
       ...prev,
       images: (prev.images || []).filter((_, idx) => idx !== indexToRemove)
     }));
+    showToast('ছবি সফলভাবে সরানো হয়েছে');
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -409,11 +414,23 @@ export const AdminProductsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Error Message Alert */}
+            {/* Error Message Alert with Retry */}
             {uploadError && (
-              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>{uploadError}</span>
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="font-medium">{uploadError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadError(null);
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-2.5 py-1 rounded bg-rose-600 text-white font-bold text-[11px] hover:bg-rose-700 cursor-pointer shrink-0"
+                >
+                  পুনরায় চেষ্টা করুন
+                </button>
               </div>
             )}
 
@@ -424,7 +441,7 @@ export const AdminProductsPage: React.FC = () => {
                   onClick={() => !uploadingImage && fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
                     uploadingImage
-                      ? 'border-blue-300 bg-blue-50/50'
+                      ? 'border-blue-400 bg-blue-50/70'
                       : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50'
                   }`}
                 >
@@ -440,46 +457,74 @@ export const AdminProductsPage: React.FC = () => {
                   <div className="flex flex-col items-center justify-center space-y-1.5">
                     {uploadingImage ? (
                       <>
-                        <RefreshCw className="w-6 h-6 animate-spin text-blue-900" />
+                        <RefreshCw className="w-7 h-7 animate-spin text-blue-900" />
                         <span className="text-xs font-bold text-blue-900">
-                          ইমেজ আপলোড হচ্ছে ও ক্লাউডে সেভ হচ্ছে...
+                          ইমেজ কম্প্রেস ও ক্লাউড ডাটাবেজে আপলোড হচ্ছে...
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          অনুগ্রহ করে অপেক্ষা করুন, এটি স্বয়ংক্রিয়ভাবে সেভ হবে
                         </span>
                       </>
                     ) : (
                       <>
                         <Upload className="w-6 h-6 text-slate-400" />
                         <span className="text-xs font-bold text-slate-700">
-                          ছবি নির্বাচন করতে এখানে ক্লিক করুন (Click to upload)
+                          {formData.images && formData.images.length > 0
+                            ? 'অন্য ছবি নির্বাচন করতে এখানে ক্লিক করুন (Replace / Add)'
+                            : 'ছবি নির্বাচন করতে এখানে ক্লিক করুন (Click to upload)'}
                         </span>
                         <span className="text-[10px] text-slate-400">
-                          PNG, JPG, WebP বা SVG (সর্বোচ্চ ১০MB)
+                          PNG, JPG, WebP বা SVG (স্বয়ংক্রিয় অপ্টিমাইজেশন ও ডাটাবেজ ব্যাকআপ)
                         </span>
                       </>
                     )}
                   </div>
                 </div>
 
-                {/* Thumbnail Previews */}
+                {/* Thumbnail Previews & Management */}
                 {formData.images && formData.images.length > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto py-1">
-                    {formData.images.map((img, idx) => (
-                      <div key={idx} className="relative w-16 h-16 rounded-lg border border-slate-200 overflow-hidden shrink-0 group">
-                        <img
-                          src={getCleanProductImage(img)}
-                          alt="preview"
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
-                          title="ছবি মুছুন"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-emerald-800 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>ইমেজ ক্লাউড স্টোরেজ ও ডাটাবেজে যুক্ত হয়েছে</span>
+                      </span>
+                      <span className="text-slate-400 font-mono">মোট {formData.images.length} টি</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 overflow-x-auto py-1">
+                      {formData.images.map((img, idx) => (
+                        <div key={idx} className="relative w-20 h-20 rounded-xl border-2 border-blue-900/30 overflow-hidden shrink-0 group shadow-2xs bg-white">
+                          <img
+                            src={getCleanProductImage(img)}
+                            alt="preview"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" fill="%23f1f5f9"><rect width="100" height="100" fill="%23f1f5f9"/><circle cx="50" cy="40" r="16" fill="%23cbd5e1"/><path d="M35 70 Q50 55 65 70" stroke="%2394a3b8" stroke-width="3" fill="none"/></svg>`;
+                            }}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center cursor-pointer shadow-xs hover:bg-blue-500"
+                              title="ছবি পরিবর্তন করুন (Replace)"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(idx)}
+                              className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center cursor-pointer shadow-xs hover:bg-rose-500"
+                              title="ছবি মুছে ফেলুন (Delete)"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

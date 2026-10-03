@@ -97,5 +97,11 @@ service cloud.firestore {
       allow read, update: if (isAdmin() || isSignedIn());
       allow delete: if isAdmin();
     }
+
+    // Product Images Storage Collection (Publicly readable, Admin/Staff writable)
+    match /product_images/{imageId} {
+      allow read: if true;
+      allow write: if (isAdmin() || isSignedIn());
+    }
   }
 }

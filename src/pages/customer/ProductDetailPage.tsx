@@ -120,11 +120,19 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(img)}
-                  className={`w-20 h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
-                    selectedImage === img ? 'border-blue-900 ring-1 ring-blue-900' : 'border-slate-200 opacity-70 hover:opacity-100'
+                  className={`w-20 h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                    (selectedImage || product.images[0]) === img ? 'border-blue-900 ring-1 ring-blue-900' : 'border-slate-200 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={img.replace('/src/assets/images/', '/assets/images/')}
+                    alt=""
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" fill="%23f1f5f9"><rect width="100" height="100" fill="%23f1f5f9"/><circle cx="50" cy="40" r="16" fill="%23cbd5e1"/><path d="M35 70 Q50 55 65 70" stroke="%2394a3b8" stroke-width="3" fill="none"/></svg>`;
+                    }}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 </button>
               ))}
             </div>
