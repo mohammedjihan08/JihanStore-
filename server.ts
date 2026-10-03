@@ -20,45 +20,101 @@ app.use(express.json());
 // Persistent Telegram Configuration Path
 const TELEGRAM_CONFIG_PATH = path.resolve(__dirname, '.telegram-config.json');
 
-interface TelegramConfig {
+export interface SingleBotConfig {
+  id: 'bot1' | 'bot2';
+  name: string;
   botToken: string;
   chatId: string;
+  isActive: boolean;
+  username?: string;
+}
+
+export interface DualTelegramConfig {
   enabled: boolean;
   notifyOnNewOrder: boolean;
   notifyOnDeposit: boolean;
+  lastUsedBot: 'bot1' | 'bot2';
+  totalOrdersRotated: number;
+  bot1: SingleBotConfig;
+  bot2: SingleBotConfig;
 }
 
-// Default credentials provided by the user
-const defaultTelegramConfig: TelegramConfig = {
-  botToken: process.env.TELEGRAM_BOT_TOKEN || '8192507842:AAGBawQqvEthsDcFmncon3Xr6rLHwb4s44I',
-  chatId: process.env.TELEGRAM_CHAT_ID || '6607631932',
+// User-provided credentials
+const defaultDualTelegramConfig: DualTelegramConfig = {
   enabled: true,
   notifyOnNewOrder: true,
   notifyOnDeposit: true,
+  lastUsedBot: 'bot2', // Initialized so 1st order goes to Bot 1
+  totalOrdersRotated: 0,
+  bot1: {
+    id: 'bot1',
+    name: 'Bot 1 (Primary)',
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '8192507842:AAGBawQqvEthsDcFmncon3Xr6rLHwb4s44I',
+    chatId: process.env.TELEGRAM_CHAT_ID || '6607631932',
+    isActive: true,
+    username: 'jihanstoreofficial009bot',
+  },
+  bot2: {
+    id: 'bot2',
+    name: 'Bot 2 (Rotation)',
+    botToken: process.env.TELEGRAM_BOT2_TOKEN || '8627436875:AAGxH3Q4LQFkG1WrSTOKiF3Z9zyP4Fkd60k',
+    chatId: process.env.TELEGRAM_CHAT_ID || '6607631932',
+    isActive: true,
+    username: 'jihanstore009bot',
+  },
 };
 
 // Helper: Load Telegram Configuration safely
-function loadTelegramConfig(): TelegramConfig {
+function loadDualTelegramConfig(): DualTelegramConfig {
   try {
     if (fs.existsSync(TELEGRAM_CONFIG_PATH)) {
       const data = fs.readFileSync(TELEGRAM_CONFIG_PATH, 'utf-8');
       const parsed = JSON.parse(data);
+
+      // Handle legacy single-bot structure migration if needed
+      if (parsed.botToken && !parsed.bot1) {
+        return {
+          ...defaultDualTelegramConfig,
+          bot1: {
+            ...defaultDualTelegramConfig.bot1,
+            botToken: parsed.botToken,
+            chatId: parsed.chatId || defaultDualTelegramConfig.bot1.chatId,
+          },
+        };
+      }
+
       return {
-        botToken: parsed.botToken || defaultTelegramConfig.botToken,
-        chatId: parsed.chatId || defaultTelegramConfig.chatId,
-        enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : defaultTelegramConfig.enabled,
-        notifyOnNewOrder: typeof parsed.notifyOnNewOrder === 'boolean' ? parsed.notifyOnNewOrder : defaultTelegramConfig.notifyOnNewOrder,
-        notifyOnDeposit: typeof parsed.notifyOnDeposit === 'boolean' ? parsed.notifyOnDeposit : defaultTelegramConfig.notifyOnDeposit,
+        enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : defaultDualTelegramConfig.enabled,
+        notifyOnNewOrder: typeof parsed.notifyOnNewOrder === 'boolean' ? parsed.notifyOnNewOrder : defaultDualTelegramConfig.notifyOnNewOrder,
+        notifyOnDeposit: typeof parsed.notifyOnDeposit === 'boolean' ? parsed.notifyOnDeposit : defaultDualTelegramConfig.notifyOnDeposit,
+        lastUsedBot: parsed.lastUsedBot === 'bot1' ? 'bot1' : 'bot2',
+        totalOrdersRotated: typeof parsed.totalOrdersRotated === 'number' ? parsed.totalOrdersRotated : 0,
+        bot1: {
+          id: 'bot1',
+          name: parsed.bot1?.name || defaultDualTelegramConfig.bot1.name,
+          botToken: parsed.bot1?.botToken || defaultDualTelegramConfig.bot1.botToken,
+          chatId: parsed.bot1?.chatId || defaultDualTelegramConfig.bot1.chatId,
+          isActive: typeof parsed.bot1?.isActive === 'boolean' ? parsed.bot1.isActive : defaultDualTelegramConfig.bot1.isActive,
+          username: parsed.bot1?.username || defaultDualTelegramConfig.bot1.username,
+        },
+        bot2: {
+          id: 'bot2',
+          name: parsed.bot2?.name || defaultDualTelegramConfig.bot2.name,
+          botToken: parsed.bot2?.botToken || defaultDualTelegramConfig.bot2.botToken,
+          chatId: parsed.bot2?.chatId || defaultDualTelegramConfig.bot2.chatId,
+          isActive: typeof parsed.bot2?.isActive === 'boolean' ? parsed.bot2.isActive : defaultDualTelegramConfig.bot2.isActive,
+          username: parsed.bot2?.username || defaultDualTelegramConfig.bot2.username,
+        },
       };
     }
   } catch (err) {
     console.warn('Could not read .telegram-config.json, using defaults:', err);
   }
-  return { ...defaultTelegramConfig };
+  return { ...defaultDualTelegramConfig };
 }
 
 // Helper: Save Telegram Configuration
-function saveTelegramConfig(config: TelegramConfig): void {
+function saveDualTelegramConfig(config: DualTelegramConfig): void {
   try {
     fs.writeFileSync(TELEGRAM_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
   } catch (err) {
@@ -72,7 +128,7 @@ function maskToken(token: string): string {
   if (token.length <= 10) return '••••••••';
   const prefix = token.substring(0, 5);
   const suffix = token.substring(token.length - 4);
-  return `${prefix}${'•'.repeat(token.length - 9)}${suffix}`;
+  return `${prefix}${'•'.repeat(Math.max(4, token.length - 9))}${suffix}`;
 }
 
 // Helper: Send message to Telegram API
@@ -99,71 +155,114 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
 }
 
 // ==========================================
-// TELEGRAM API ENDPOINTS
+// TELEGRAM API ENDPOINTS (DUAL-BOT ROTATION)
 // ==========================================
 
-// 1. GET Current Telegram Configuration (Masked for Security)
+// 1. GET Current Dual-Bot Configuration (Masked)
 app.get('/api/telegram/config', (req, res) => {
-  const config = loadTelegramConfig();
+  const config = loadDualTelegramConfig();
+
+  // Next bot calculation for UI preview
+  let nextBot: 'bot1' | 'bot2' = 'bot1';
+  if (config.bot1.isActive && config.bot2.isActive) {
+    nextBot = config.lastUsedBot === 'bot1' ? 'bot2' : 'bot1';
+  } else if (config.bot2.isActive) {
+    nextBot = 'bot2';
+  } else {
+    nextBot = 'bot1';
+  }
+
   res.json({
-    configured: Boolean(config.botToken && config.chatId),
-    botTokenMasked: maskToken(config.botToken),
-    chatId: config.chatId,
     enabled: config.enabled,
     notifyOnNewOrder: config.notifyOnNewOrder,
     notifyOnDeposit: config.notifyOnDeposit,
-  });
-});
-
-// 2. POST Update Telegram Configuration
-app.post('/api/telegram/config', (req, res) => {
-  const current = loadTelegramConfig();
-  const { botToken, chatId, enabled, notifyOnNewOrder, notifyOnDeposit } = req.body;
-
-  let newBotToken = current.botToken;
-  // Only update token if a new, unmasked token is provided
-  if (botToken && typeof botToken === 'string' && botToken.trim() !== '' && !botToken.includes('•')) {
-    newBotToken = botToken.trim();
-  }
-
-  const updated: TelegramConfig = {
-    botToken: newBotToken,
-    chatId: typeof chatId === 'string' && chatId.trim() !== '' ? chatId.trim() : current.chatId,
-    enabled: typeof enabled === 'boolean' ? enabled : current.enabled,
-    notifyOnNewOrder: typeof notifyOnNewOrder === 'boolean' ? notifyOnNewOrder : current.notifyOnNewOrder,
-    notifyOnDeposit: typeof notifyOnDeposit === 'boolean' ? notifyOnDeposit : current.notifyOnDeposit,
-  };
-
-  saveTelegramConfig(updated);
-
-  res.json({
-    success: true,
-    message: 'টেলিগ্রাম সেটিংস সফলভাবে সংরক্ষিত ও আপডেট হয়েছে!',
-    config: {
-      configured: Boolean(updated.botToken && updated.chatId),
-      botTokenMasked: maskToken(updated.botToken),
-      chatId: updated.chatId,
-      enabled: updated.enabled,
-      notifyOnNewOrder: updated.notifyOnNewOrder,
-      notifyOnDeposit: updated.notifyOnDeposit,
+    lastUsedBot: config.lastUsedBot,
+    nextBot,
+    totalOrdersRotated: config.totalOrdersRotated,
+    bot1: {
+      id: 'bot1',
+      name: config.bot1.name,
+      botTokenMasked: maskToken(config.bot1.botToken),
+      chatId: config.bot1.chatId,
+      isActive: config.bot1.isActive,
+      username: config.bot1.username || 'jihanstoreofficial009bot',
+      configured: Boolean(config.bot1.botToken && config.bot1.chatId),
+    },
+    bot2: {
+      id: 'bot2',
+      name: config.bot2.name,
+      botTokenMasked: maskToken(config.bot2.botToken),
+      chatId: config.bot2.chatId,
+      isActive: config.bot2.isActive,
+      username: config.bot2.username || 'jihanstore009bot',
+      configured: Boolean(config.bot2.botToken && config.bot2.chatId),
     },
   });
 });
 
-// 3. POST Send Test Telegram Message
-app.post('/api/telegram/test', async (req, res) => {
-  const config = loadTelegramConfig();
+// 2. POST Update Telegram Dual-Bot Configuration
+app.post('/api/telegram/config', (req, res) => {
+  const current = loadDualTelegramConfig();
+  const { enabled, notifyOnNewOrder, notifyOnDeposit, bot1, bot2 } = req.body;
 
-  // Allow testing with custom token/chatId if provided in body
+  let newBot1Token = current.bot1.botToken;
+  if (bot1?.botToken && typeof bot1.botToken === 'string' && bot1.botToken.trim() !== '' && !bot1.botToken.includes('•')) {
+    newBot1Token = bot1.botToken.trim();
+  }
+
+  let newBot2Token = current.bot2.botToken;
+  if (bot2?.botToken && typeof bot2.botToken === 'string' && bot2.botToken.trim() !== '' && !bot2.botToken.includes('•')) {
+    newBot2Token = bot2.botToken.trim();
+  }
+
+  const updated: DualTelegramConfig = {
+    ...current,
+    enabled: typeof enabled === 'boolean' ? enabled : current.enabled,
+    notifyOnNewOrder: typeof notifyOnNewOrder === 'boolean' ? notifyOnNewOrder : current.notifyOnNewOrder,
+    notifyOnDeposit: typeof notifyOnDeposit === 'boolean' ? notifyOnDeposit : current.notifyOnDeposit,
+    bot1: {
+      id: 'bot1',
+      name: bot1?.name || current.bot1.name,
+      botToken: newBot1Token,
+      chatId: typeof bot1?.chatId === 'string' && bot1.chatId.trim() !== '' ? bot1.chatId.trim() : current.bot1.chatId,
+      isActive: typeof bot1?.isActive === 'boolean' ? bot1.isActive : current.bot1.isActive,
+      username: bot1?.username || current.bot1.username,
+    },
+    bot2: {
+      id: 'bot2',
+      name: bot2?.name || current.bot2.name,
+      botToken: newBot2Token,
+      chatId: typeof bot2?.chatId === 'string' && bot2.chatId.trim() !== '' ? bot2.chatId.trim() : current.bot2.chatId,
+      isActive: typeof bot2?.isActive === 'boolean' ? bot2.isActive : current.bot2.isActive,
+      username: bot2?.username || current.bot2.username,
+    },
+  };
+
+  saveDualTelegramConfig(updated);
+
+  res.json({
+    success: true,
+    message: '২টি টেলিগ্রাম বটের কনফিগারেশন সফলভাবে আপডেট হয়েছে!',
+    config: updated,
+  });
+});
+
+// 3. POST Send Test Telegram Message (Specific Bot or Both)
+app.post('/api/telegram/test', async (req, res) => {
+  const config = loadDualTelegramConfig();
+  const targetBotId = req.body?.targetBot || 'bot1'; // 'bot1' or 'bot2'
+
+  const target = targetBotId === 'bot2' ? config.bot2 : config.bot1;
+
   const tokenToUse = (req.body?.botToken && !req.body.botToken.includes('•'))
     ? req.body.botToken.trim()
-    : config.botToken;
-  const chatIdToUse = req.body?.chatId ? req.body.chatId.trim() : config.chatId;
+    : target.botToken;
+  const chatIdToUse = req.body?.chatId ? req.body.chatId.trim() : target.chatId;
 
   if (!tokenToUse || !chatIdToUse) {
     return res.status(400).json({
       success: false,
-      message: 'টেলিগ্রাম বট টোকেন বা চ্যাট আইডি কনফিগার করা হয়নি।',
+      message: `${target.name}-এর বট টোকেন বা চ্যাট আইডি কনফিগার করা নেই।`,
     });
   }
 
@@ -174,14 +273,14 @@ app.post('/api/telegram/test', async (req, res) => {
   });
 
   const message = [
-    `🔔 <b>Jihan Store (জিহান স্টোর) - টেলিগ্রাম টেস্ট নোটিফিকেশন</b>`,
+    `🔔 <b>Jihan Store (জিহান স্টোর) - ${target.name} টেস্ট মেসেজ</b>`,
     `━━━━━━━━━━━━━━━━━━━━━━`,
-    `✅ <b>কানেকশন স্ট্যাটাস:</b> সক্রিয় (Connected)`,
-    `🤖 <b>বট:</b> Jihan Store Bot (@jihanstoreofficial009bot)`,
-    `👤 <b>চ্যাট আইডি / ইউজার আইডি:</b> <code>${chatIdToUse}</code>`,
+    `✅ <b>কানেকশন স্ট্যাটাস:</b> সক্রিয় (Online)`,
+    `🤖 <b>বট:</b> ${target.name} (@${target.username || 'bot'})`,
+    `👤 <b>চ্যাট আইডি:</b> <code>${chatIdToUse}</code>`,
     `⏰ <b>বাংলাদেশ সময়:</b> ${now}`,
     `━━━━━━━━━━━━━━━━━━━━━━`,
-    `🎉 <i>অভিনন্দন! আপনার টেলিগ্রাম ইন্টিগ্রেশন সম্পূর্ণ প্রস্তুত। নতুন অর্ডার ও গুরুত্বপূর্ণ আপডেট এখন থেকে স্বয়ংক্রিয়ভাবে আপনার ফোনে আসবে।</i>`,
+    `🔄 <b>অর্ডার রোটেশন মোড:</b> ২-বট পালাক্রমে অর্ডার নোটিফিকেশন সিস্টেম কার্যকর রয়েছে।`,
   ].join('\n');
 
   const tgRes = await sendTelegramMessage(tokenToUse, chatIdToUse, message);
@@ -189,25 +288,58 @@ app.post('/api/telegram/test', async (req, res) => {
   if (tgRes.ok) {
     return res.json({
       success: true,
-      message: 'টেলিগ্রামে টেস্ট নোটিফিকেশন সফলভাবে পাঠানো হয়েছে!',
+      bot: target.name,
+      message: `${target.name}-এ টেস্ট মেসেজ সফলভাবে পাঠানো হয়েছে!`,
       result: tgRes.result,
     });
   } else {
     return res.status(500).json({
       success: false,
-      message: `টেলিগ্রাম মেসেজ পাঠাতে ব্যর্থ: ${tgRes.description || 'Unknown Telegram Error'}`,
+      bot: target.name,
+      message: `${target.name}-এ মেসেজ পাঠাতে ব্যর্থ: ${tgRes.description || 'Unknown error'}`,
     });
   }
 });
 
-// 4. POST Send New Order Notification to Telegram
+// 4. POST Send New Order Notification with STRICT 2-BOT ROTATION
+// Order 1 -> Bot 1, Order 2 -> Bot 2, Order 3 -> Bot 1, etc.
+// NEVER send duplicate to both bots simultaneously!
 app.post('/api/telegram/notify-order', async (req, res) => {
-  const config = loadTelegramConfig();
+  const config = loadDualTelegramConfig();
 
-  if (!config.enabled || !config.notifyOnNewOrder || !config.botToken || !config.chatId) {
-    return res.json({ success: false, message: 'টেলিগ্রাম নোটিফিকেশন নিষ্ক্রিয় বা কনফিগার করা নেই।' });
+  if (!config.enabled || !config.notifyOnNewOrder) {
+    return res.json({ success: false, message: 'টেলিগ্রাম অর্ডার নোটিফিকেশন বন্ধ রয়েছে।' });
   }
 
+  // Determine active bots
+  const bot1Active = config.bot1.isActive && Boolean(config.bot1.botToken && config.bot1.chatId);
+  const bot2Active = config.bot2.isActive && Boolean(config.bot2.botToken && config.bot2.chatId);
+
+  if (!bot1Active && !bot2Active) {
+    return res.json({ success: false, message: 'উভয় টেলিগ্রাম বট নিষ্ক্রিয় রয়েছে।' });
+  }
+
+  // Select target bot sequentially
+  let selectedBotId: 'bot1' | 'bot2';
+
+  if (bot1Active && bot2Active) {
+    // Both active: alternate!
+    // If last was bot1 -> now bot2
+    // If last was bot2 -> now bot1
+    selectedBotId = config.lastUsedBot === 'bot1' ? 'bot2' : 'bot1';
+  } else if (bot1Active) {
+    // Only Bot 1 active
+    selectedBotId = 'bot1';
+  } else {
+    // Only Bot 2 active
+    selectedBotId = 'bot2';
+  }
+
+  const primaryBot = selectedBotId === 'bot1' ? config.bot1 : config.bot2;
+  const fallbackBot = selectedBotId === 'bot1' ? config.bot2 : config.bot1;
+  const canFallback = selectedBotId === 'bot1' ? bot2Active : bot1Active;
+
+  // Prepare message payload
   const order = req.body || {};
   const orderId = order.id || 'N/A';
   const customerName = order.customerName || 'সম্মানিত গ্রাহক';
@@ -243,10 +375,10 @@ app.post('/api/telegram/notify-order', async (req, res) => {
     if (paymentDetails.senderNumber) {
       paymentInfo += `\n📱 <b>প্রেরক নম্বর:</b> <code>${paymentDetails.senderNumber}</code>`;
     }
-    if (paymentDetails.depositSlipInfo) {
-      paymentInfo += `\n📄 <b>রেফারেন্স:</b> ${paymentDetails.depositSlipInfo}`;
-    }
   }
+
+  const orderNumberInRotation = config.totalOrdersRotated + 1;
+  const botLabel = selectedBotId === 'bot1' ? 'Bot 1 (Primary)' : 'Bot 2 (Rotation)';
 
   const message = [
     `🛍️ <b>নতুন অর্ডার গৃহীত হয়েছে! (New Order)</b>`,
@@ -265,23 +397,57 @@ app.post('/api/telegram/notify-order', async (req, res) => {
     `💰 <b>সর্বমোট প্রদেয় মূল্য:</b> <b>৳${grandTotal.toLocaleString()} BDT</b>`,
     `⏰ <b>অর্ডারের সময়:</b> ${now}`,
     `━━━━━━━━━━━━━━━━━━━━━━`,
+    `🔄 <b>পালাক্রম:</b> অর্ডার নং #${orderNumberInRotation} → <b>${botLabel}</b>`,
     `🚀 <i>Jihan Store – বিশ্বাসের সাথে অনলাইন শপিং</i>`,
   ].join('\n');
 
-  const tgRes = await sendTelegramMessage(config.botToken, config.chatId, message);
+  // Attempt to send ONLY to the selected bot
+  let tgRes = await sendTelegramMessage(primaryBot.botToken, primaryBot.chatId, message);
+  let deliveredBy = selectedBotId;
 
-  res.json({
-    success: tgRes.ok,
-    message: tgRes.ok ? 'টেলিগ্রাম নোটিফিকেশন পাঠানো হয়েছে' : tgRes.description,
-  });
+  // Failover to secondary active bot if primary failed
+  if (!tgRes.ok && canFallback) {
+    console.warn(`Failed sending to ${primaryBot.name}, failing over to ${fallbackBot.name}...`);
+    tgRes = await sendTelegramMessage(fallbackBot.botToken, fallbackBot.chatId, message);
+    if (tgRes.ok) {
+      deliveredBy = fallbackBot.id;
+    }
+  }
+
+  if (tgRes.ok) {
+    // Record rotation state
+    config.lastUsedBot = deliveredBy;
+    config.totalOrdersRotated = orderNumberInRotation;
+    saveDualTelegramConfig(config);
+
+    res.json({
+      success: true,
+      deliveredBy,
+      botName: deliveredBy === 'bot1' ? config.bot1.name : config.bot2.name,
+      orderNumber: orderNumberInRotation,
+      message: `অর্ডার সফলভাবে ${deliveredBy === 'bot1' ? config.bot1.name : config.bot2.name}-এ পাঠানো হয়েছে।`,
+    });
+  } else {
+    res.status(500).json({
+      success: false,
+      message: `টেলিগ্রাম নোটিফিকেশন পাঠাতে ব্যর্থ: ${tgRes.description || 'Unknown error'}`,
+    });
+  }
 });
 
-// 5. POST Send Alert Notification (e.g. Deposit Request / Withdrawal)
+// 5. POST Send Alert Notification (Deposits / Withdrawals)
 app.post('/api/telegram/notify-alert', async (req, res) => {
-  const config = loadTelegramConfig();
+  const config = loadDualTelegramConfig();
 
-  if (!config.enabled || !config.notifyOnDeposit || !config.botToken || !config.chatId) {
+  if (!config.enabled || !config.notifyOnDeposit) {
     return res.json({ success: false, message: 'টেলিগ্রাম নোটিফিকেশন বন্ধ রয়েছে।' });
+  }
+
+  // Active bot for alert (prefers Bot 1, falls back to Bot 2)
+  const targetBot = (config.bot1.isActive && config.bot1.botToken) ? config.bot1 : config.bot2;
+
+  if (!targetBot.botToken || !targetBot.chatId) {
+    return res.json({ success: false, message: 'বট কনফিগার করা নেই।' });
   }
 
   const { title, message: alertMsg, customerName, amount, method, trxId } = req.body || {};
@@ -305,8 +471,9 @@ app.post('/api/telegram/notify-alert', async (req, res) => {
 
   lines.push(`⏰ <b>সময়:</b> ${now}`);
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`🤖 প্রেরক: ${targetBot.name}`);
 
-  const tgRes = await sendTelegramMessage(config.botToken, config.chatId, lines.join('\n'));
+  const tgRes = await sendTelegramMessage(targetBot.botToken, targetBot.chatId, lines.join('\n'));
 
   res.json({
     success: tgRes.ok,

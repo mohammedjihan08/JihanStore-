@@ -12,6 +12,7 @@ import {
 } from '../../types';
 import { Button, Input, Textarea, Modal } from '../../components/common/UI';
 import { BANGLADESH_DIVISIONS } from '../../data/bangladeshLocations';
+import { AdminTelegramPage } from './AdminTelegramPage';
 import {
   Settings,
   Save,
@@ -34,7 +35,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Check,
-  Clock
+  Clock,
+  Send
 } from 'lucide-react';
 
 export const AdminWebsiteSettingsPage: React.FC = () => {
@@ -53,7 +55,7 @@ export const AdminWebsiteSettingsPage: React.FC = () => {
     defaultDeliveryCharge: typeof settings.defaultDeliveryCharge === 'number' ? settings.defaultDeliveryCharge : 130
   }));
 
-  const [activeTab, setActiveTab] = useState<'delivery' | 'payment' | 'contact' | 'identity' | 'shipping'>('delivery');
+  const [activeTab, setActiveTab] = useState<'delivery' | 'payment' | 'telegram' | 'contact' | 'identity' | 'shipping'>('delivery');
 
   // Modals state for Adding / Editing entries
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
@@ -844,6 +846,18 @@ export const AdminWebsiteSettingsPage: React.FC = () => {
         >
           <CreditCard className="w-4 h-4 text-amber-400" />
           <span>পেমেন্ট অ্যাকাউন্টসমূহ ({form.bkashAccounts.length + form.nagadAccounts.length + form.rocketAccounts.length + form.upayAccounts.length + form.bankAccounts.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('telegram')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            activeTab === 'telegram'
+              ? 'bg-blue-900 text-white shadow-sm'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Send className="w-4 h-4 text-amber-400" />
+          <span>টেলিগ্রাম ২-বট রোটেশন</span>
         </button>
 
         <button
@@ -2046,6 +2060,15 @@ export const AdminWebsiteSettingsPage: React.FC = () => {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB: TELEGRAM 2-BOT ROTATION INTEGRATION                        */}
+      {/* ============================================================== */}
+      {activeTab === 'telegram' && (
+        <div className="pt-2">
+          <AdminTelegramPage />
         </div>
       )}
 
