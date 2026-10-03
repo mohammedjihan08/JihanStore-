@@ -14,8 +14,40 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
-// Body Parser
-app.use(express.json());
+// Body Parser with 50mb limit for image uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Ensure public/uploads/logo directory exists
+const UPLOADS_DIR = path.resolve(__dirname, 'public/uploads/logo');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+// Serve static uploads BEFORE Vite middlewares
+app.use('/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
+
+// Persistent Logo Configuration Path
+const LOGO_CONFIG_PATH = path.resolve(__dirname, '.logo-config.json');
+
+function loadLogoConfig(): { logoUrl: string; updatedAt: string } {
+  try {
+    if (fs.existsSync(LOGO_CONFIG_PATH)) {
+      const data = fs.readFileSync(LOGO_CONFIG_PATH, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.warn('Could not read .logo-config.json:', err);
+  }
+  return { logoUrl: '', updatedAt: '' };
+}
+
+function saveLogoConfig(config: { logoUrl: string; updatedAt: string }): void {
+  try {
+    fs.writeFileSync(LOGO_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write .logo-config.json:', err);
+  }
+}
 
 // Persistent Telegram Configuration Path
 const TELEGRAM_CONFIG_PATH = path.resolve(__dirname, '.telegram-config.json');
@@ -479,6 +511,138 @@ app.post('/api/telegram/notify-alert', async (req, res) => {
     success: tgRes.ok,
     message: tgRes.ok ? 'এলার্ট সফলভাবে পাঠানো হয়েছে' : tgRes.description,
   });
+});
+
+// ==========================================
+// LOGO MANAGEMENT ENDPOINTS
+// ==========================================
+
+// 1. GET Current Active Logo
+app.get('/api/logo', (req, res) => {
+  const config = loadLogoConfig();
+  res.json({
+    success: true,
+    logoUrl: config.logoUrl || '',
+    updatedAt: config.updatedAt || '',
+  });
+});
+
+// 2. POST Upload / Replace Logo
+app.post('/api/logo/upload', (req, res) => {
+  try {
+    const { dataUrl, fileName, onlineUrl } = req.body || {};
+
+    // Option A: Direct online URL provided
+    if (onlineUrl && typeof onlineUrl === 'string' && onlineUrl.trim() !== '') {
+      const cleanUrl = onlineUrl.trim();
+      saveLogoConfig({ logoUrl: cleanUrl, updatedAt: new Date().toISOString() });
+      return res.json({
+        success: true,
+        logoUrl: cleanUrl,
+        message: 'অনলাইন লোগো URL সফলভাবে সেভ করা হয়েছে!',
+      });
+    }
+
+    // Option B: Base64 / DataURL Image Upload
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'কোনো ইমেজ ডাটা পাওয়া যায়নি।',
+      });
+    }
+
+    // Detect format from data:image/...;base64,...
+    const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({
+        success: false,
+        message: 'অকার্যকর ইমেজ ফরম্যাট। অনুগ্রহ করে PNG, SVG, JPG বা WebP ইমেজ দিন।',
+      });
+    }
+
+    let ext = matches[1].toLowerCase();
+    if (ext === 'svg+xml') ext = 'svg';
+    if (ext === 'jpeg') ext = 'jpg';
+
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Remove any previous custom logo files in the upload directory so replace is clean
+    try {
+      if (fs.existsSync(UPLOADS_DIR)) {
+        const existingFiles = fs.readdirSync(UPLOADS_DIR);
+        for (const file of existingFiles) {
+          if (file.startsWith('store_logo_')) {
+            try {
+              fs.unlinkSync(path.join(UPLOADS_DIR, file));
+            } catch {}
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error cleaning previous logo files:', err);
+    }
+
+    const timestamp = Date.now();
+    const newFileName = `store_logo_${timestamp}.${ext}`;
+    const targetFilePath = path.join(UPLOADS_DIR, newFileName);
+
+    fs.writeFileSync(targetFilePath, buffer);
+
+    // Add cache busting param to URL so browsers instantly reload the new image
+    const publicUrl = `/uploads/logo/${newFileName}?v=${timestamp}`;
+
+    saveLogoConfig({
+      logoUrl: publicUrl,
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      logoUrl: publicUrl,
+      message: 'লোগো সফলভাবে আপলোড ও কার্যকর হয়েছে!',
+    });
+  } catch (err: any) {
+    console.error('Logo upload error:', err);
+    res.status(500).json({
+      success: false,
+      message: `লোগো আপলোড ব্যর্থ: ${err?.message || 'সার্ভার ত্রুটি'}`,
+    });
+  }
+});
+
+// 3. DELETE / Remove Logo
+app.delete('/api/logo', (req, res) => {
+  try {
+    // Delete custom logo files from disk
+    if (fs.existsSync(UPLOADS_DIR)) {
+      const existingFiles = fs.readdirSync(UPLOADS_DIR);
+      for (const file of existingFiles) {
+        if (file.startsWith('store_logo_')) {
+          try {
+            fs.unlinkSync(path.join(UPLOADS_DIR, file));
+          } catch {}
+        }
+      }
+    }
+
+    saveLogoConfig({
+      logoUrl: '',
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      logoUrl: '',
+      message: 'লোগো সফলভাবে ডিলিট করা হয়েছে এবং ডিফল্ট লোগো সচল করা হয়েছে।',
+    });
+  } catch (err: any) {
+    console.error('Logo delete error:', err);
+    res.status(500).json({
+      success: false,
+      message: `লোগো ডিলিট ব্যর্থ: ${err?.message || 'সার্ভার ত্রুটি'}`,
+    });
+  }
 });
 
 // ==========================================

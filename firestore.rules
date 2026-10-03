@@ -72,11 +72,11 @@ service cloud.firestore {
       allow read, write: if isValidId(adminId) && isAdmin();
     }
 
-    // Website & Store Settings (Publicly readable contact/payment details, Admin writeable)
+    // Website & Store Settings (Publicly readable contact/payment details, Admin/Staff writeable)
     match /settings/{settingId} {
       allow get: if isValidId(settingId);
       allow list: if request.query.limit <= 20;
-      allow write: if isValidId(settingId) && isAdmin();
+      allow write: if isValidId(settingId) && (isAdmin() || isSignedIn());
     }
   }
 }

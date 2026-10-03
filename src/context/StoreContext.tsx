@@ -194,15 +194,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem('jihan_store_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // If saved settings contains old mock telephone or old mock address, refresh with official details
-        const isOldMock = !parsed.phone || parsed.phone.includes('000000') || (parsed.address && parsed.address.includes('Uttara'));
+        // Ensure custom logoUrl is strictly preserved
+        const preservedLogoUrl = typeof parsed.logoUrl === 'string' ? parsed.logoUrl : '';
+
+        // If saved settings contains old mock telephone, refresh telephone and address but KEEP custom logo
+        const isOldMock = !parsed.phone || parsed.phone.includes('000000');
         if (isOldMock) {
-          localStorage.setItem('jihan_store_settings', JSON.stringify(initialSettings));
-          return initialSettings;
+          const refreshed = { ...initialSettings, logoUrl: preservedLogoUrl };
+          localStorage.setItem('jihan_store_settings', JSON.stringify(refreshed));
+          return refreshed;
         }
         return {
           ...initialSettings,
           ...parsed,
+          logoUrl: preservedLogoUrl,
           phoneNumbers: Array.isArray(parsed.phoneNumbers) && parsed.phoneNumbers.length > 0 ? parsed.phoneNumbers : initialSettings.phoneNumbers,
           emailAddresses: Array.isArray(parsed.emailAddresses) && parsed.emailAddresses.length > 0 ? parsed.emailAddresses : initialSettings.emailAddresses,
           businessAddresses: Array.isArray(parsed.businessAddresses) && parsed.businessAddresses.length > 0 ? parsed.businessAddresses : initialSettings.businessAddresses,
@@ -222,18 +227,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [orders, setOrders] = useState<Order[]>(sampleOrders);
 
-  // Sync settings with Firestore database
+  // Sync settings with Firestore database and server storage
   useEffect(() => {
     async function loadRemoteSettings() {
+      let remoteLogoUrl: string | null = null;
+
+      // 1. Check Server Logo Storage
+      try {
+        const logoRes = await fetch('/api/logo');
+        if (logoRes.ok) {
+          const logoData = await logoRes.json();
+          if (logoData && typeof logoData.logoUrl === 'string') {
+            remoteLogoUrl = logoData.logoUrl;
+          }
+        }
+      } catch {}
+
+      // 2. Check Firestore Database
       try {
         const docRef = doc(db, 'settings', 'general');
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const remoteData = snap.data() as Partial<WebsiteSettings>;
           setSettings(prev => {
+            const activeLogo = typeof remoteData.logoUrl === 'string'
+              ? remoteData.logoUrl
+              : (remoteLogoUrl !== null ? remoteLogoUrl : prev.logoUrl);
+
             const merged: WebsiteSettings = {
               ...prev,
               ...remoteData,
+              logoUrl: activeLogo || '',
               phoneNumbers: Array.isArray(remoteData.phoneNumbers) && remoteData.phoneNumbers.length > 0 ? remoteData.phoneNumbers : prev.phoneNumbers,
               emailAddresses: Array.isArray(remoteData.emailAddresses) && remoteData.emailAddresses.length > 0 ? remoteData.emailAddresses : prev.emailAddresses,
               businessAddresses: Array.isArray(remoteData.businessAddresses) && remoteData.businessAddresses.length > 0 ? remoteData.businessAddresses : prev.businessAddresses,
@@ -250,9 +274,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             } catch {}
             return merged;
           });
+          return;
         }
       } catch (err) {
         console.warn('Could not fetch settings from Firestore, using local settings:', err);
+      }
+
+      // If Firestore doc doesn't exist yet but server has custom logo
+      if (remoteLogoUrl !== null) {
+        setSettings(prev => {
+          if (prev.logoUrl === remoteLogoUrl) return prev;
+          const merged = { ...prev, logoUrl: remoteLogoUrl };
+          try {
+            localStorage.setItem('jihan_store_settings', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     }
     loadRemoteSettings();
@@ -708,6 +745,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       } catch (err) {
         console.warn('Firestore setDoc call error:', err);
+      }
+
+      // Sync logoUrl with Server Storage if logo was changed
+      if (newSettings.logoUrl !== undefined) {
+        if (!newSettings.logoUrl) {
+          fetch('/api/logo', { method: 'DELETE' }).catch(() => {});
+        } else if (newSettings.logoUrl.startsWith('http')) {
+          fetch('/api/logo/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ onlineUrl: newSettings.logoUrl }),
+          }).catch(() => {});
+        }
       }
 
       return updated;

@@ -100,13 +100,23 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* Brand Header */}
         <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-900 flex items-center justify-center font-bold text-amber-400 font-mono text-sm border border-amber-500/30">
-              JS
-            </div>
-            <div>
-              <span className="font-extrabold text-white text-sm block">JIHAN STORE</span>
-              <span className="text-[10px] text-amber-400 font-mono">ADMIN CONTROL PANEL</span>
-            </div>
+            {settings.logoUrl ? (
+              <img
+                src={settings.logoUrl}
+                alt="Jihan Store Logo"
+                className="max-h-9 w-auto max-w-[150px] object-contain shrink-0"
+              />
+            ) : (
+              <>
+                <div className="w-8 h-8 rounded-lg bg-blue-900 flex items-center justify-center font-bold text-amber-400 font-mono text-sm border border-amber-500/30 shrink-0">
+                  JS
+                </div>
+                <div>
+                  <span className="font-extrabold text-white text-sm block">JIHAN STORE</span>
+                  <span className="text-[10px] text-amber-400 font-mono">ADMIN CONTROL PANEL</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
